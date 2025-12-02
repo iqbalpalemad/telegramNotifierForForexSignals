@@ -39,7 +39,7 @@ async def handle_message(channel_name, parser_module, message_text, meta_api_cli
         print(f"❌ Error parsing message from {channel_name}: {e}")
 
 async def start():
-    client.start()
+    await client.start()
     meta_api_client = MetaApiStreamClient(META_API_TOKEN, META_API_ACCOUNT_ID)
     await meta_api_client.connect()
     print("🚀 Listening for signals...")
@@ -54,5 +54,5 @@ async def start():
             await handle_message(ch["name"], ch["parser"], text,meta_api_client)
 
     print("✅ Ready to receive messages.")
-    client.run_until_disconnected()
+    await client.run_until_disconnected()
 
