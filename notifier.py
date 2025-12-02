@@ -1,15 +1,22 @@
-from telethon.tl.types import InputPeerChannel
-from dotenv import load_dotenv
+from pushover_client import PushoverClient
 import os
 
-load_dotenv()
+pushover = PushoverClient(
+    user_key = os.getenv("PUSHOVER_KEY"),
+    app_token = os.getenv("PUSHOVER_TOKEN")
+)
 
-NOTIFY_CHANNEL_ID = int(os.getenv("NOTIFY_CHANNEL_ID"))
-NOTIFY_CHANNEL_HASH = int(os.getenv("NOTIFY_CHANNEL_HASH"))
+def notify_signal(channel, entry, sl, tp):
+    msg = f"📩 Signal Received\nChannel: {channel}\nEntry: {entry}\nSL: {sl}\nTP: {tp}"
+    print(f"✅ PUSHOVER_KEY {os.getenv("PUSHOVER_KEY")}")
+    print(f"✅ PUSHOVER_TOKEN {os.getenv("PUSHOVER_TOKEN")}")
+    print(pushover)
+    pushover.notify_info(msg)
 
-async def send_notification(client, message: str):
-    """
-    Uses the already running Telegram client (passed in) to send the notification.
-    """
-    channel = InputPeerChannel(NOTIFY_CHANNEL_ID, NOTIFY_CHANNEL_HASH)
-    await client.send_message(channel, message)
+def notify_order_placed(symbol, price, order_id):
+    msg = f"📈 Trade Executed\nSymbol: {symbol}\nPrice: {price}\nOrder ID: {order_id}"
+    pushover.notify_info(msg)
+
+def notify_trade_closed(symbol, result):
+    msg = f"📌 Trade Closed: {symbol}\nResult: {result}"
+    pushover.notify_info(msg)
