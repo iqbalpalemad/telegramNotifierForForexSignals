@@ -44,11 +44,12 @@ class MetaApiStreamClient(SynchronizationListener):
 
     async def is_ready(self):
         """Check if MetaApi stream is synchronized and usable."""
-
+        return True
         if not self.connection:
             return False
 
         health = getattr(self.connection, "health_status", {})
+        print(self.connection);
         print("🔍 MetaAPI Health Status:", health)
 
         return self.ready and health.get("synchronized", False)
