@@ -15,12 +15,9 @@ API_HASH = os.getenv("API_HASH")
 SESSION_NAME = os.getenv("SESSION_NAME", "user_session")
 META_API_TOKEN = os.getenv("META_API_TOKEN")
 META_API_ACCOUNT_ID = os.getenv("META_API_ACCOUNT_ID")
-metaApiClient = None
-
-
 
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
-async def handle_message(channel_name, parser_module, message_text):
+async def handle_message(channel_name, parser_module, message_text, meta_api_client):
     try:
         parser = importlib.import_module(f"parsers.{parser_module}")
         parsed = parser.parse_message(message_text)
@@ -36,7 +33,7 @@ async def handle_message(channel_name, parser_module, message_text):
             f"SL: {parsed['stop_loss']}"
         )
         notify_signal(channel_name,parsed['entry'], parsed['stop_loss'], parsed['target'])
-        await metaApiClient.place_market_order(parsed['symbol'],parsed['action'],parsed['stop_loss'],parsed['target'])
+        await meta_api_client.place_market_order(parsed['symbol'],parsed['action'],parsed['stop_loss'],parsed['target'])
 
     except Exception as e:
         print(f"❌ Error parsing message from {channel_name}: {e}")
@@ -54,7 +51,7 @@ async def start():
         async def handler(event, ch=ch):
             text = event.message.message
             print(f"✅ Signale recieved from {text}")
-            await handle_message(ch["name"], ch["parser"], text)
+            await handle_message(ch["name"], ch["parser"], text,metaApiClient)
 
     print("✅ Ready to receive messages.")
     await client.run_until_disconnected()
