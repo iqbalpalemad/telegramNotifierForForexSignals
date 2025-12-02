@@ -69,7 +69,7 @@ class MetaApiStreamClient(SynchronizationListener):
         print(f"   SL: {sl}, TP: {tp}")
 
         try:
-            order = await self.rpc.create_market_order(
+            order = await self.rpc.trade.create_market_order(
                 symbol=SYMBOL_MAP.get(symbol, symbol),
                 volume=volume,
                 side=direction.lower(),
@@ -94,7 +94,7 @@ class MetaApiStreamClient(SynchronizationListener):
         print(f"   SL: {sl}, TP: {tp}")
 
         try:
-            order = await self.rpc.create_limit_order(
+            order = await self.rpc.trade.create_limit_order(
                 symbol=symbol,
                 volume=volume,
                 side=direction.lower(),
