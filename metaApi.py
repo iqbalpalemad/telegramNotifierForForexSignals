@@ -1,4 +1,3 @@
-import asyncio
 from metaapi_cloud_sdk import MetaApi, SynchronizationListener
 
 SYMBOL_MAP = {
@@ -15,13 +14,11 @@ class MetaApiStreamClient(SynchronizationListener):
         self.api = MetaApi(api_token)
         self.account = None
         self.connection = None
-        self.stream = None
-        self.rpc = None
         self.ready = False
 
-    # -----------------------------
-    #         CONNECTION
-    # -----------------------------
+    # -------------------------------------------------------
+    #                 CONNECTION & STREAM SETUP
+    # -------------------------------------------------------
     async def connect(self):
         print("🔌 Connecting to MetaApi...")
 
@@ -31,90 +28,92 @@ class MetaApiStreamClient(SynchronizationListener):
         await self.account.wait_connected()
         print("✅ Account connected!")
 
-        # STREAMING CONNECTION (Events + sync updates)
-        print("🔁 Connecting streaming listener...")
-        self.stream = self.account.get_streaming_connection()
-        self.stream.add_synchronization_listener(self)
-        await self.stream.connect()
-        print("🔁 Streaming connected.")
+        self.connection = self.account.get_streaming_connection()
 
-        # RPC (TRADING) CONNECTION
-        print("⚙️ Connecting trading (RPC) interface...")
-        self.rpc = self.account.get_rpc_connection()
-        await self.rpc.connect()
-        print("🟢 Trading RPC connected!")
+        # Register listener BEFORE connecting
+        self.connection.add_synchronization_listener(self)
 
-        print("⏳ Waiting for full synchronization...")
-        await self.stream.wait_synchronized()
-        print("🎯 Streaming synchronized successfully!")
+        await self.connection.connect()
 
-        if not self.ready:
-            self.ready = True
-            print("🎯 MetaApi synchronized and ready.")
+        print("⏳ Waiting for initial streaming sync...")
+        await self.connection.wait_synchronized()
+        print("⚠️ Waiting for synchronization callback... (will signal readiness)")
 
     async def is_ready(self):
         return self.ready
 
-    # -----------------------------
-    #          TRADE METHODS
-    # -----------------------------
-    async def place_market_order(self, symbol: str, direction: str, sl=None, tp=None, volume=None):
-        """Place a market order."""
+    # -------------------------------------------------------
+    #                      TRADE METHODS
+    # -------------------------------------------------------
+    async def place_market_order(self, symbol, direction, sl=None, tp=None, volume=None):
+        """Place a BUY/SELL market order."""
         if not await self.is_ready():
-            raise Exception("❌ MetaApi connection not ready yet.")
-
-        volume = volume or self.default_lot
-
-        print(f"\n📌 MARKET ORDER → {direction.upper()} {symbol} ({volume} lots)")
-        print(f"   SL: {sl}, TP: {tp}")
-
-        try:
-            order = await self.rpc.trade.create_market_order(
-                symbol=SYMBOL_MAP.get(symbol, symbol),
-                volume=volume,
-                side=direction.lower(),
-                stop_loss_price=sl,
-                take_profit_price=tp
-            )
-            print("✅ Market order placed successfully.")
-            return order
-
-        except Exception as err:
-            print("❌ Error placing market order:", err)
+            print("⛔ MetaApi not ready — ignoring trade request.")
             return None
 
-    async def place_limit_order(self, symbol: str, direction: str, entry_price: float, sl=None, tp=None, volume=None):
-        """Place a pending limit order."""
-        if not await self.is_ready():
-            raise Exception("❌ MetaApi connection not ready yet.")
-
         volume = volume or self.default_lot
+        symbol = SYMBOL_MAP.get(symbol, symbol)
 
-        print(f"\n📌 LIMIT ORDER → {direction.upper()} {symbol} @ {entry_price} ({volume} lots)")
-        print(f"   SL: {sl}, TP: {tp}")
+        print(f"\n📌 MARKET ORDER → {direction.upper()} {symbol} ({volume} lot)")
 
         try:
-            order = await self.rpc.trade.create_limit_order(
-                symbol=symbol,
-                volume=volume,
-                side=direction.lower(),
-                open_price=entry_price,
-                stop_loss_price=sl,
-                take_profit_price=tp
-            )
-            print("📎 Limit order created successfully.")
-            return order
+            if direction.lower() == "buy":
+                result = await self.connection.create_market_buy_order(
+                    symbol=symbol, volume=volume, stop_loss=sl, take_profit=tp
+                )
+            else:
+                result = await self.connection.create_market_sell_order(
+                    symbol=symbol, volume=volume, stop_loss=sl, take_profit=tp
+                )
+
+            print("✅ Market order placed successfully")
+            return result
 
         except Exception as err:
-            print("❌ Error placing limit order:", err)
+            print(f"❌ Error placing market order: {err}")
             return None
 
-    # -----------------------------
-    #     STREAM LISTENER HOOKS
-    # -----------------------------
+    async def place_limit_order(self, symbol, direction, price, sl=None, tp=None, volume=None):
+        """Place pending limit order."""
+        if not await self.is_ready():
+            print("⛔ MetaApi not ready — ignoring trade request.")
+            return None
+
+        volume = volume or self.default_lot
+        symbol = SYMBOL_MAP.get(symbol, symbol)
+
+        print(f"\n📌 LIMIT ORDER → {direction.upper()} {symbol} @ {price}")
+
+        try:
+            if direction.lower() == "buy":
+                result = await self.connection.create_limit_buy_order(
+                    symbol=symbol, volume=volume, open_price=price,
+                    stop_loss=sl, take_profit=tp
+                )
+            else:
+                result = await self.connection.create_limit_sell_order(
+                    symbol=symbol, volume=volume, open_price=price,
+                    stop_loss=sl, take_profit=tp
+                )
+
+            print("📎 Limit order created successfully")
+            return result
+
+        except Exception as err:
+            print(f"❌ Error placing limit order: {err}")
+            return None
+
+    # -------------------------------------------------------
+    #                  LISTENER CALLBACKS
+    # -------------------------------------------------------
+
+    async def on_synchronization_completed(self, instance_index, specifications_updated):
+        """🔥 THIS MEANS STREAM IS FULLY READY TO TRADE."""
+        print("\n🚀 MetaApi synchronization completed — TRADING READY!")
+        self.ready = True
 
     async def on_order_added(self, instance_index, order):
-        print("\n🔵 NEW ORDER CREATED -----------------------")
+        print("\n🔵 ORDER ADDED -----------------------")
         print(order)
 
     async def on_order_updated(self, instance_index, order):
@@ -127,34 +126,18 @@ class MetaApiStreamClient(SynchronizationListener):
 
     async def on_position_added(self, instance_index, position):
         print("\n🟢 POSITION OPENED -----------------------")
-        print(f"Symbol: {position.symbol}")
-        print(f"Direction: {position.type}")
-        print(f"Volume: {position.volume}")
-        print(f"Entry Price: {position.price}")
+        print(position)
 
     async def on_position_updated(self, instance_index, position):
         print("\n🟠 POSITION UPDATED -----------------------")
-        print(f"{position.symbol} running profit: {position.unrealized_profit}")
+        print(position)
 
     async def on_position_removed(self, instance_index, position):
-        print("\n🚨 POSITION CLOSED -----------------------")
-        print(f"Symbol: {position.symbol}")
-        print(f"Volume: {position.volume}")
-        print(f"Close Price: {position.price}")
-
         pnl = position.realized_profit or position.unrealized_profit or 0
-
-        if pnl >= 0:
-            print(f"💰 PROFIT: {pnl}")
-        else:
-            print(f"❌ LOSS: {pnl}")
+        print("\n🚨 POSITION CLOSED -----------------------")
+        print(position)
+        print(f"📊 PNL: {'💰 PROFIT' if pnl >= 0 else '❌ LOSS'} {pnl}")
 
     async def on_deal_added(self, instance_index, deal):
         print("\n💥 DEAL EXECUTED -----------------------")
         print(deal)
-
-    async def on_synchronization_completed(self, instance_index, specifications, positions, orders, historyOrders,
-                                           historyDeals):
-        print("🎉 MetaApi synchronization completed — trading enabled!")
-        self.ready = True
-
