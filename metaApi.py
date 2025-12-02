@@ -15,6 +15,8 @@ class MetaApiStreamClient(SynchronizationListener):
         self.api = MetaApi(api_token)
         self.account = None
         self.connection = None
+        self.stream = None
+        self.rpc = None
         self.ready = False
 
     # -----------------------------
@@ -29,35 +31,34 @@ class MetaApiStreamClient(SynchronizationListener):
         await self.account.wait_connected()
         print("✅ Account connected!")
 
-        self.connection = self.account.get_streaming_connection()
+        # STREAMING CONNECTION (Events + sync updates)
+        print("🔁 Connecting streaming listener...")
+        self.stream = self.account.get_streaming_connection()
+        self.stream.add_synchronization_listener(self)
+        await self.stream.connect()
+        print("🔁 Streaming connected.")
 
-        # register listener
-        self.connection.add_synchronization_listener(self)
+        # RPC (TRADING) CONNECTION
+        print("⚙️ Connecting trading (RPC) interface...")
+        self.rpc = self.account.get_rpc_connection()
+        await self.rpc.connect()
+        print("🟢 Trading RPC connected!")
 
-        await self.connection.connect()
-
-        print("⏳ Waiting for streaming sync...")
-        await self.connection.wait_synchronized()
+        print("⏳ Waiting for full synchronization...")
+        await self.stream.wait_synchronized()
         print("🎯 Streaming synchronized successfully!")
 
-        self.ready = True
+        if not self.ready:
+            self.ready = True
+            print("🎯 MetaApi synchronized and ready.")
 
     async def is_ready(self):
-        if not self.ready or not self.connection:
-            return False
-
-        # some metaapi versions use "synchronized"
-        if hasattr(self.connection, "synchronized"):
-            return self.connection.synchronized
-
-        # others use internal "health_status"
-        health = getattr(self.connection, "health_status", {})
-        return health.get("synchronized", False)
+        return self.ready
 
     # -----------------------------
     #          TRADE METHODS
     # -----------------------------
-    async def place_market_order(self, symbol: str, direction: str, sl=None, tp=None, volume=0.01):
+    async def place_market_order(self, symbol: str, direction: str, sl=None, tp=None, volume=None):
         """Place a market order."""
         if not await self.is_ready():
             raise Exception("❌ MetaApi connection not ready yet.")
@@ -68,7 +69,7 @@ class MetaApiStreamClient(SynchronizationListener):
         print(f"   SL: {sl}, TP: {tp}")
 
         try:
-            order = await self.connection.create_market_order(
+            order = await self.rpc.create_market_order(
                 symbol=SYMBOL_MAP.get(symbol, symbol),
                 volume=volume,
                 side=direction.lower(),
@@ -93,7 +94,7 @@ class MetaApiStreamClient(SynchronizationListener):
         print(f"   SL: {sl}, TP: {tp}")
 
         try:
-            order = await self.connection.create_limit_order(
+            order = await self.rpc.create_limit_order(
                 symbol=symbol,
                 volume=volume,
                 side=direction.lower(),
