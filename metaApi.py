@@ -14,7 +14,6 @@ class MetaApiStreamClient(SynchronizationListener):
         self.api = MetaApi(api_token)
         self.account = None
         self.connection = None
-        self.ready = False
 
     # -------------------------------------------------------
     #                 CONNECTION & STREAM SETUP
@@ -48,7 +47,7 @@ class MetaApiStreamClient(SynchronizationListener):
         volume = volume or self.default_lot
         symbol = SYMBOL_MAP.get(symbol, symbol)
 
-        print(f"\n📌 MARKET ORDER → {direction.upper()} {symbol} ({volume} lot)")
+        print(f"\n📌 MARKET ORDER → {direction.upper()} {symbol} ({volume} lot). SL: {sl} TP: {tp}")
 
         try:
             if direction.lower() == "buy":
@@ -68,10 +67,6 @@ class MetaApiStreamClient(SynchronizationListener):
             return None
 
     async def place_limit_order(self, symbol, direction, price, sl=None, tp=None, volume=None):
-        """Place pending limit order."""
-        if not await self.is_ready():
-            print("⛔ MetaApi not ready — ignoring trade request.")
-            return None
 
         volume = volume or self.default_lot
         symbol = SYMBOL_MAP.get(symbol, symbol)
