@@ -39,17 +39,11 @@ class MetaApiStreamClient(SynchronizationListener):
         await self.connection.wait_synchronized()
         print("⚠️ Waiting for synchronization callback... (will signal readiness)")
 
-    async def is_ready(self):
-        return self.ready
-
     # -------------------------------------------------------
     #                      TRADE METHODS
     # -------------------------------------------------------
     async def place_market_order(self, symbol, direction, sl=None, tp=None, volume=None):
         """Place a BUY/SELL market order."""
-        if not await self.is_ready():
-            print("⛔ MetaApi not ready — ignoring trade request.")
-            return None
 
         volume = volume or self.default_lot
         symbol = SYMBOL_MAP.get(symbol, symbol)
@@ -140,7 +134,3 @@ class MetaApiStreamClient(SynchronizationListener):
     async def on_deal_added(self, instance_index, deal):
         print("\n💥 DEAL EXECUTED -----------------------")
         print(deal)
-
-    async def on_synchronization_completed(self, instance_index, specs_updated):
-        print("🚀 Synchronization callback received. Trading READY!")
-        self.ready = True
