@@ -43,16 +43,16 @@ class MetaApiStreamClient(SynchronizationListener):
         self.ready = True
 
     async def is_ready(self):
-        """Check if MetaApi stream is synchronized and usable."""
-        return True
-        if not self.connection:
+        if not self.ready or not self.connection:
             return False
 
-        health = getattr(self.connection, "health_status", {})
-        print(self.connection);
-        print("🔍 MetaAPI Health Status:", health)
+        # some metaapi versions use "synchronized"
+        if hasattr(self.connection, "synchronized"):
+            return self.connection.synchronized
 
-        return self.ready and health.get("synchronized", False)
+        # others use internal "health_status"
+        health = getattr(self.connection, "health_status", {})
+        return health.get("synchronized", False)
 
     # -----------------------------
     #          TRADE METHODS
@@ -151,3 +151,9 @@ class MetaApiStreamClient(SynchronizationListener):
     async def on_deal_added(self, instance_index, deal):
         print("\n💥 DEAL EXECUTED -----------------------")
         print(deal)
+
+    async def on_synchronization_completed(self, instance_index, specifications, positions, orders, historyOrders,
+                                           historyDeals):
+        print("🎉 MetaApi synchronization completed — trading enabled!")
+        self.ready = True
+
