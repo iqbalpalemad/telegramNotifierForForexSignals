@@ -107,24 +107,23 @@ class MetaApiStreamClient(SynchronizationListener):
     #                  LISTENER CALLBACKS
     # -------------------------------------------------------
 
-    async def on_synchronization_completed(self, instance_index, specifications_updated):
-        """🔥 THIS MEANS STREAM IS FULLY READY TO TRADE."""
-        print("\n🚀 MetaApi synchronization completed — TRADING READY!")
-        self.ready = True
-
-    async def on_order_added(self, instance_index, order):
+    @staticmethod
+    async def on_order_added(instance_index, order):
         print("\n🔵 ORDER ADDED -----------------------")
         print(order)
 
-    async def on_order_updated(self, instance_index, order):
+    @staticmethod
+    async def on_order_updated(instance_index, order):
         print("\n🟡 ORDER UPDATED -----------------------")
         print(order)
 
-    async def on_order_removed(self, instance_index, order):
+    @staticmethod
+    async def on_order_removed(instance_index, order):
         print("\n🔴 ORDER REMOVED -----------------------")
         print(order)
 
-    async def on_position_added(self, instance_index, position):
+    @staticmethod
+    async def on_position_added(instance_index, position):
         print("\n🟢 POSITION OPENED -----------------------")
         print(position)
 
@@ -141,3 +140,10 @@ class MetaApiStreamClient(SynchronizationListener):
     async def on_deal_added(self, instance_index, deal):
         print("\n💥 DEAL EXECUTED -----------------------")
         print(deal)
+
+    async def on_synchronization_started(self, instance_index):
+        print("🔄 Synchronization started...")
+
+    async def on_synchronization_completed(self, instance_index, specs_updated):
+        print("🚀 Synchronization callback received. Trading READY!")
+        self.ready = True
