@@ -141,9 +141,6 @@ class MetaApiStreamClient(SynchronizationListener):
         print("\n💥 DEAL EXECUTED -----------------------")
         print(deal)
 
-    async def on_synchronization_started(self, instance_index):
-        print("🔄 Synchronization started...")
-
     async def on_synchronization_completed(self, instance_index, specs_updated):
         print("🚀 Synchronization callback received. Trading READY!")
         self.ready = True
