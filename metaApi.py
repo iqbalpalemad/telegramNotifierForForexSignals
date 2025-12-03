@@ -56,6 +56,7 @@ class MetaApiStreamClient(SynchronizationListener):
         while not self.stop_flag:
             try:
                 # Status check using safe parameters
+                print("🐶 Watchdog : status check started")
                 status = self.connection.account.connection_status
                 hs = self.connection.health_monitor.health_status
 
@@ -67,6 +68,8 @@ class MetaApiStreamClient(SynchronizationListener):
 
                     async with self._lock:  # prevent concurrent reconnect
                         await self._safe_reconnect()
+                else :
+                    print("🐶 Watchdog : connection active")
 
                 await asyncio.sleep(30)
 
