@@ -1,4 +1,6 @@
+import asyncio
 from metaapi_cloud_sdk import MetaApi, SynchronizationListener
+import traceback
 
 SYMBOL_MAP = {
     "XAUUSD": "XAUUSD_i",
@@ -14,6 +16,12 @@ class MetaApiStreamClient(SynchronizationListener):
         self.api = MetaApi(api_token)
         self.account = None
         self.connection = None
+
+        self.ready = False
+        self._lock = asyncio.Lock()
+
+        self.watchdog_task = None
+        self.stop_flag = False
 
     # -------------------------------------------------------
     #                 CONNECTION & STREAM SETUP
@@ -37,6 +45,57 @@ class MetaApiStreamClient(SynchronizationListener):
         print("⏳ Waiting for initial streaming sync...")
         await self.connection.wait_synchronized()
         print("⚠️ Waiting for synchronization callback... (will signal readiness)")
+
+        self.ready = True
+
+        self.watchdog_task = asyncio.create_task(self._watchdog_loop())
+        print("🐶 Watchdog started")
+
+    async def _watchdog_loop(self):
+        """Ensures connection stays alive."""
+        while not self.stop_flag:
+            try:
+                # Status check using safe parameters
+                status = self.connection.account.connection_status
+                hs = self.connection.health_monitor.health_status
+
+                connected = hs.get("connected", True)
+                broker_connected = hs.get("connectedToBroker", True)
+
+                if status != "CONNECTED" or not connected or not broker_connected:
+                    print(f"⚠️ MetaApi connection lost (status={status}). Reconnecting...")
+
+                    async with self._lock:  # prevent concurrent reconnect
+                        await self._safe_reconnect()
+
+                await asyncio.sleep(30)
+
+            except Exception as e:
+                print("❌ Watchdog error:", e)
+                print(traceback.format_exc())
+                await asyncio.sleep(30)
+
+    async def _safe_reconnect(self):
+        """Reconnect logic with synchronization."""
+        try:
+            print("🔄 Reconnecting to MetaApi...")
+
+            try:
+                await self.connection.disconnect()
+            except:
+                pass  # ignore disconnect errors
+
+            await asyncio.sleep(1)
+
+            await self.connection.connect()
+            await self.connection.wait_synchronized()
+
+            print("✅ Reconnected and synchronized")
+            self.ready = True
+
+        except Exception as e:
+            print("❌ Reconnect failed:", e)
+            self.ready = False
 
     # -------------------------------------------------------
     #                      TRADE METHODS
