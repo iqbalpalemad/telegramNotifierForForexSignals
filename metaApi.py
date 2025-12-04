@@ -1,7 +1,9 @@
 import asyncio
 from metaapi_cloud_sdk import MetaApi, SynchronizationListener
 import traceback
-
+from datetime import datetime
+WATCHDOG_INTERVAL = 30
+RECONNECT_COOLDOWN  = 10
 SYMBOL_MAP = {
     "XAUUSD": "XAUUSD_i",
 }
@@ -17,11 +19,9 @@ class MetaApiStreamClient(SynchronizationListener):
         self.account = None
         self.connection = None
 
-        self.ready = False
-        self._lock = asyncio.Lock()
 
         self.watchdog_task = None
-        self.stop_flag = False
+        self._reconnecting = False
 
     # -------------------------------------------------------
     #                 CONNECTION & STREAM SETUP
@@ -46,65 +46,84 @@ class MetaApiStreamClient(SynchronizationListener):
         await self.connection.wait_synchronized()
         print("⚠️ Waiting for synchronization callback... (will signal readiness)")
 
-        self.ready = True
 
-        self.watchdog_task = asyncio.create_task(self._watchdog_loop())
+        self.watchdog_task = asyncio.create_task(self._watchdog())
         print("🐶 Watchdog started")
 
-    async def _watchdog_loop(self):
-        """Ensures connection stays alive."""
-        while not self.stop_flag:
+    def is_connection_healthy(self) -> bool:
+        try:
+            return (
+                    self.connection is not None and
+                    self.account.connection_status == "CONNECTED" and
+                    self.connection.synchronized is True
+            )
+        except Exception as e:
+            return False
+
+    async def _watchdog(self):
+        print("🐕 Watchdog started")
+
+        while True:
             try:
-                # Status check using safe parameters
-                print("🐶 Watchdog : status check started")
-                status = self.connection.account.connection_status
-                hs = self.connection.health_monitor.health_status
-
-                connected = hs.get("connected", True)
-                broker_connected = hs.get("connectedToBroker", True)
-
-                if status != "CONNECTED" or not connected or not broker_connected:
-                    print(f"⚠️ MetaApi connection lost (status={status}). Reconnecting...")
-
-                    async with self._lock:  # prevent concurrent reconnect
-                        await self._safe_reconnect()
-                else :
-                    print("🐶 Watchdog : connection active")
-
-                await asyncio.sleep(30)
+                if not self.is_connection_healthy():
+                    print("⚠ Connection unhealthy detected. Reconnecting...")
+                    await self._safe_reconnect()
+                else:
+                    print(f"✅ [{datetime.utcnow()}] Connection healthy")
 
             except Exception as e:
                 print("❌ Watchdog error:", e)
-                print(traceback.format_exc())
-                await asyncio.sleep(30)
+                traceback.print_exc()
+
+            await asyncio.sleep(WATCHDOG_INTERVAL)
 
     async def _safe_reconnect(self):
-        """Reconnect logic with synchronization."""
+        if self._reconnecting:
+            return
+
+        self._reconnecting = True
+
         try:
-            print("🔄 Reconnecting to MetaApi...")
+            print("🔁 Performing safe reconnect...")
 
+            # 1️⃣ Close old connection
             try:
-                await self.connection.disconnect()
-            except:
-                pass  # ignore disconnect errors
+                if self.connection:
+                    await self.connection.close()
+            except Exception:
+                pass
 
-            await asyncio.sleep(1)
+            # 2️⃣ Cooldown
+            await asyncio.sleep(RECONNECT_COOLDOWN)
 
+            # 3️⃣ Re-fetch account
+            self.account = await self.api.metatrader_account_api.get_account(self.account_id)
+            await self.account.wait_connected()
+
+            # 4️⃣ Create fresh connection
+            self.connection = self.account.get_streaming_connection()
+            self.connection.add_synchronization_listener(self)
+
+            # 5️⃣ Connect & sync
             await self.connection.connect()
             await self.connection.wait_synchronized()
 
-            print("✅ Reconnected and synchronized")
-            self.ready = True
+            print("✅ Reconnected & synchronized successfully")
 
         except Exception as e:
-            print("❌ Reconnect failed:", e)
-            self.ready = False
+            print("❌ Reconnect failed:", str(e))
+            traceback.print_exc()
+        finally:
+            self._reconnecting = False
 
     # -------------------------------------------------------
     #                      TRADE METHODS
     # -------------------------------------------------------
     async def place_market_order(self, symbol, direction, sl=None, tp=None, volume=None):
         """Place a BUY/SELL market order."""
+        if not self.is_connection_healthy():
+            print("⚠ Trade blocked — connection NOT healthy")
+            return None
 
         volume = volume or self.default_lot
         symbol = SYMBOL_MAP.get(symbol, symbol)
@@ -129,6 +148,9 @@ class MetaApiStreamClient(SynchronizationListener):
             return None
 
     async def place_limit_order(self, symbol, direction, price, sl=None, tp=None, volume=None):
+        if not self.is_connection_healthy():
+            print("⚠ Trade blocked — connection NOT healthy")
+            return None
 
         volume = volume or self.default_lot
         symbol = SYMBOL_MAP.get(symbol, symbol)
