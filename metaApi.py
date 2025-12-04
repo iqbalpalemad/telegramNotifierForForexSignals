@@ -94,10 +94,12 @@ class MetaApiStreamClient(SynchronizationListener):
                     await self.connection.close()
             except Exception:
                 pass
-
+            self.api = None
+            self.account = None
+            self.connection = None
             # 2️⃣ Cooldown
             await asyncio.sleep(RECONNECT_COOLDOWN)
-
+            self.api = MetaApi(self.api_token)
             # 3️⃣ Re-fetch account
             self.account = await self.api.metatrader_account_api.get_account(self.account_id)
             await self.account.wait_connected()
