@@ -20,3 +20,7 @@ def notify_order_placed(symbol, price, order_id):
 def notify_trade_closed(symbol, result):
     msg = f"📌 Trade Closed: {symbol}\nResult: {result}"
     pushover.notify_info(msg)
+
+def send_notification(message):
+    msg = f"{message}"
+    pushover.notify_info(msg)

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import os
 from channels_config import CHANNELS
 load_dotenv()
-from notifier import notify_signal, notify_order_placed, notify_trade_closed
+from notifier import notify_signal, notify_order_placed, notify_trade_closed, send_notification
 from metaApi import MetaApiStreamClient
 
 

@@ -2,6 +2,7 @@ import asyncio
 from metaapi_cloud_sdk import MetaApi, SynchronizationListener
 import traceback
 from datetime import datetime
+from notifier import notify_signal, notify_order_placed, notify_trade_closed, send_notification
 WATCHDOG_INTERVAL = 30
 RECONNECT_COOLDOWN  = 10
 SYMBOL_MAP = {
@@ -67,6 +68,7 @@ class MetaApiStreamClient(SynchronizationListener):
             try:
                 if not self.is_connection_healthy():
                     print("⚠ Connection unhealthy detected. Reconnecting...")
+                    send_notification("⚠ Connection unhealthy detected. Reconnecting...")
                     await self._safe_reconnect()
                 else:
                     print(f"✅ [{datetime.utcnow()}] Connection healthy")
@@ -109,7 +111,7 @@ class MetaApiStreamClient(SynchronizationListener):
             await self.connection.wait_synchronized()
 
             print("✅ Reconnected & synchronized successfully")
-
+            send_notification("✅ Reconnected & synchronized successfully")
         except Exception as e:
             print("❌ Reconnect failed:", str(e))
             traceback.print_exc()
