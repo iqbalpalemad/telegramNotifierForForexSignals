@@ -6,8 +6,8 @@ pushover = PushoverClient(
     app_token = os.getenv("PUSHOVER_TOKEN")
 )
 
-def notify_signal(channel, entry, sl, tp):
-    msg = f"📩 Signal Received\nChannel: {channel}\nEntry: {entry}\nSL: {sl}\nTP: {tp}"
+def notify_signal(channel,direction, entry, sl, tp):
+    msg = f"📩 Signal Received\nChannel: {channel}\nDirection: {direction}\nEntry: {entry}\nSL: {sl}\nTP: {tp}"
     print(f"✅ PUSHOVER_KEY {os.getenv("PUSHOVER_KEY")}")
     print(f"✅ PUSHOVER_TOKEN {os.getenv("PUSHOVER_TOKEN")}")
     print(pushover)

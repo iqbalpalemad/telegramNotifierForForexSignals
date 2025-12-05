@@ -32,7 +32,7 @@ async def handle_message(channel_name, parser_module, message_text, meta_api_cli
             f"TP: {parsed['target']}\n"
             f"SL: {parsed['stop_loss']}"
         )
-        notify_signal(channel_name,parsed['entry'], parsed['stop_loss'], parsed['target'])
+        notify_signal(channel_name,parsed['action'],parsed['entry'], parsed['stop_loss'], parsed['target'])
         await meta_api_client.place_market_order(parsed['symbol'],parsed['action'],parsed['stop_loss'],parsed['target'])
 
     except Exception as e:
