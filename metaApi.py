@@ -90,10 +90,16 @@ class MetaApiStreamClient(SynchronizationListener):
 
             # 1️⃣ Close old connection
             try:
-                if self.connection:
-                    await self.connection.close()
+                await self.connection.close()
             except Exception:
                 pass
+
+            try:
+                 self.api.close()
+            except:
+                pass
+
+
             self.api = None
             self.account = None
             self.connection = None
