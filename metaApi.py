@@ -217,9 +217,9 @@ class MetaApiStreamClient(SynchronizationListener):
     async def on_position_removed(self, instance_index, position):
 
         print("\n🚨 POSITION CLOSED -----------------------")
-        pnl = position.realized_profit or position.unrealized_profit or 0
+        # pnl = position.realized_profit or position.unrealized_profit or 0
         print(position)
-        print(f"📊 PNL: {'💰 PROFIT' if pnl >= 0 else '❌ LOSS'} {pnl}")
+        # print(f"📊 PNL: {'💰 PROFIT' if pnl >= 0 else '❌ LOSS'} {pnl}")
 
     async def on_deal_added(self, instance_index, deal):
         print("\n💥 DEAL EXECUTED -----------------------")
