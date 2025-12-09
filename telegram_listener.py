@@ -18,6 +18,7 @@ META_API_ACCOUNT_ID = os.getenv("META_API_ACCOUNT_ID")
 
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 async def handle_message(channel_name, parser_module, message_text, meta_api_client):
+    print("Message Received")
     try:
         parser = importlib.import_module(f"parsers.{parser_module}")
         parsed = parser.parse_message(message_text)

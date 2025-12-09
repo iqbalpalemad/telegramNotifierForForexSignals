@@ -8,9 +8,6 @@ pushover = PushoverClient(
 
 def notify_signal(channel,direction, entry, sl, tp):
     msg = f"📩 Signal Received\nChannel: {channel}\nDirection: {direction}\nEntry: {entry}\nSL: {sl}\nTP: {tp}"
-    print(f"✅ PUSHOVER_KEY {os.getenv("PUSHOVER_KEY")}")
-    print(f"✅ PUSHOVER_TOKEN {os.getenv("PUSHOVER_TOKEN")}")
-    print(pushover)
     pushover.notify_info(msg)
 
 def notify_order_placed(symbol, price, order_id):
