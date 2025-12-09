@@ -17,6 +17,6 @@ CHANNELS = [
         "name": "goldTradeBotTestChannel",
         "id": 3484215583,
         "access_hash": 8896472775907210271,
-        "parser": "forexSupport"
+        "parser": "goldMaster"
     },
 ]
