@@ -10,7 +10,7 @@ def parse_message(text: str):
     action, entry, _ = match.groups()
     entry = float(entry)
 
-    tp2_pattern = r"TARGET\s*2[^0-9]*?(\d+(\.\d+)?)"
+    tp2_pattern = r"TARGET\s*1[^0-9]*?(\d+(\.\d+)?)"
     sl_pattern = r"STOP\s*LOSS[^0-9]*?(\d+(\.\d+)?)"
 
     tp_match = re.search(tp2_pattern, text, re.IGNORECASE)

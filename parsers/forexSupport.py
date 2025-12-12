@@ -10,10 +10,10 @@ def parse_message(text: str):
     entry = float(entry)
 
     if action.upper() == "BUY":
-        target = entry + 8
+        target = entry + 3
         stop_loss = entry - 8
     else:
-        target = entry - 8
+        target = entry - 3
         stop_loss = entry + 8
 
     return {
