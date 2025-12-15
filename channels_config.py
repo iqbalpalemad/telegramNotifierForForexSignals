@@ -13,10 +13,16 @@ CHANNELS = [
         "access_hash": 419711044723275946,
         "parser": "goldMaster"
     },
+{
+        "name": "TRADEX FX",
+        "id": 1602417216,
+        "access_hash": -5592313590174982322,
+        "parser": "tradexFx"
+    },
     {
         "name": "goldTradeBotTestChannel",
         "id": 3484215583,
         "access_hash": 8896472775907210271,
-        "parser": "goldMaster"
+        "parser": "tradexFx"
     },
 ]
